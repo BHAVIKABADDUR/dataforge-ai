@@ -5,39 +5,54 @@ import os
 
 load_dotenv()
 
+# ── 1. LLM Setup ─────────────────────────────────────────────────────────────
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
+# ── 2. Analytics Prompt ──────────────────────────────────────────────────────
 ANALYTICS_PROMPT = """
 You are a Senior Business Analyst for RetailIQ.
 
-Your role is to:
+Your responsibilities:
 
 - Explain business performance
 - Identify trends
-- Provide insights
+- Provide business insights
+- Interpret data
 - Suggest recommendations
-- Interpret business results
 
-Do NOT generate SQL.
+Rules:
 
-Do NOT generate code.
+- Use ONLY the provided data.
+- Do NOT invent facts.
+- Do NOT assume information that is not present in the data.
+- If exact calculations are required, use only the values shown in the data.
+- Do not exaggerate differences.
+- Reference the actual numbers provided.
+- Do NOT generate SQL.
+- Do NOT generate code.
 
-Respond like a business analyst speaking to a manager.
+Structure your response as:
 
-Keep responses concise and actionable.
+1. Key Finding
+2. Business Interpretation
+3. Recommendation
 """
 
-def analytics_agent(question: str):
+# ── 3. Analytics Agent ───────────────────────────────────────────────────────
+def analytics_agent(question: str, data: str):
 
     prompt = f"""
 {ANALYTICS_PROMPT}
 
-Question:
+Business Question:
 {question}
+
+Available Data:
+{data}
 
 Business Analysis:
 """
@@ -48,21 +63,26 @@ Business Analysis:
 
     return response.content.strip()
 
-
+# ── 4. Test ──────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
 
-    questions = [
-        "Why is Asia outperforming Europe?",
-        "Recommend ways to increase revenue.",
-        "What insights can you provide about customer segments?",
-        "Explain sales trends over time."
-    ]
+    question = "Why is Asia outperforming Europe?"
 
-    for q in questions:
-        print("\n" + "=" * 60)
-        print("Question:", q)
+    data = """
+Region | Revenue
+Asia | 100
+Europe | 90
+"""
+    result = analytics_agent(
+        question,
+        data
+    )
 
-        result = analytics_agent(q)
+    print("\n" + "=" * 60)
+    print("Question:", question)
 
-        print("\nAnalysis:")
-        print(result)
+    print("\nData:")
+    print(data)
+
+    print("\nAnalysis:")
+    print(result)
