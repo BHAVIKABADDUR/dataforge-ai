@@ -3,6 +3,7 @@
 
 import pyodbc
 import os
+import time
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
@@ -15,9 +16,9 @@ def get_connection():
         r"DRIVER={ODBC Driver 17 for SQL Server};"
         r"SERVER=BHAVIKA\SQLEXPRESS;"
         r"DATABASE=RetailIQDW;"
-        r"Trusted_Connection=yes;"
-        r"Connection Timeout=60;"
+        r"Trusted_Connection=yes"
     )
+
 # ── 2. Schema info for the LLM ───────────────────────────────────────────────
 SCHEMA_INFO = """
 You are a SQL expert working with a retail data warehouse called RetailIQDW.
@@ -29,14 +30,47 @@ Tables available:
 - dim_region (region_id, region)
 - dim_date (date_id, order_date, year, month, quarter, day)
 
-Rules:
+General Rules:
+- This is Microsoft SQL Server.
+- Use TOP N instead of LIMIT.
+- Always JOIN fact_sales with dimension tables using the correct ID columns.
+- Use SUM(total_sales) for revenue calculations.
+- Use COUNT(order_id) for order counts.
+- Use AVG(total_sales) for average order value.
+- Use AVG(discount) when asked for average discounts.
+- Return ONLY the SQL query.
+- Do not include explanations.
+- Do not include markdown.
 
-- This is Microsoft SQL Server — use TOP N instead of LIMIT
-- Always JOIN fact_sales with dimension tables using the appropriate ID columns
-- Use SUM(total_sales) for revenue calculations
-- Use COUNT(order_id) for order counts
-- Never use LIMIT — always use SELECT TOP N
-- Return only the SQL query, nothing else, no explanation, no markdown
+SQL Server Rules:
+- Never use LIMIT.
+- Only use TOP N when the user explicitly asks for top, bottom, highest, lowest, first, or last results.
+- Do not generate TOP 100.
+- Do not generate TOP 100 PERCENT unless absolutely necessary.
+
+Time Intelligence Rules:
+- For monthly trends, GROUP BY year and month.
+- For quarterly analysis, GROUP BY year and quarter.
+- For yearly analysis, GROUP BY year.
+- Never GROUP BY date_id when the question asks for month, quarter, or year level reporting.
+- If a question asks for monthly revenue, return one row per month.
+- If a question asks for quarterly revenue, return one row per quarter.
+- If a question asks for yearly revenue, return one row per year.
+
+Ranking Rules:
+- When asked for:
+    - top N in each category
+    - top N per region
+    - top N per customer segment
+  use ROW_NUMBER() OVER(PARTITION BY ...).
+- Do not use TOP N for grouped rankings.
+- Use window functions when ranking inside groups.
+
+Warehouse Relationships:
+- fact_sales.product_id -> dim_product.product_id
+- fact_sales.customer_id -> dim_customer.customer_id
+- fact_sales.region_id -> dim_region.region_id
+- fact_sales.date_id -> dim_date.date_id
 """
 # ── 3. LLM setup ─────────────────────────────────────────────────────────────
 llm = ChatGroq(
@@ -53,16 +87,25 @@ def generate_sql(question: str) -> str:
     sql = sql.replace("```sql", "").replace("```", "").strip()
     return sql
 
-# ── 5. Execute SQL ────────────────────────────────────────────────────────────
+# ── 5. Execute SQL with retry ─────────────────────────────────────────────────
 def execute_sql(sql: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(sql)
-    columns = [col[0] for col in cursor.description]
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return columns, rows
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            return columns, rows
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Connection attempt {attempt + 1} failed, retrying in 3 seconds...")
+                time.sleep(3)
+            else:
+                raise e
 
 # ── 6. Main agent function ────────────────────────────────────────────────────
 def sql_agent(question: str):
@@ -81,4 +124,16 @@ def sql_agent(question: str):
 
 # ── 7. Test ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    sql_agent("What are the top 5 products by total revenue?")
+    questions = [
+    "Show revenue by month and category.", 
+    "Compare revenue between Asia and Europe.", 
+    "Which product had the biggest revenue increase over time?", 
+    "Show the top 3 customer segments by revenue.", 
+    "What was the worst performing quarter?",
+      "Show the top 2 products in each region.",
+        "Which category performed best in each year?", 
+    "What percentage of total revenue comes from electronics?"
+]
+    for q in questions:
+        print("\n" + "="*60)
+        sql_agent(q)
