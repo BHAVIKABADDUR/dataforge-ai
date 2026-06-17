@@ -3,6 +3,7 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, END
 
 from agents.planner_agent import planner_agent
+from agents.analytics_planner_agent import analytics_planner_agent
 from agents.sql_agent import sql_agent
 from agents.analytics_agent import analytics_agent
 from agents.documentation_agent import documentation_agent
@@ -44,9 +45,18 @@ def sql_node(state):
 # ── SQL For Analytics Node ─────────────────────────────────
 def sql_for_analytics_node(state):
 
-    sql_question = "Show revenue by region."
+    question = state["question"]
 
-    sql, columns, rows = sql_agent(sql_question)
+    sql_question = analytics_planner_agent(
+        question
+    )
+
+    print("\nAnalytics Planner:")
+    print(sql_question)
+
+    sql, columns, rows = sql_agent(
+        sql_question
+    )
 
     data = []
 
@@ -191,7 +201,9 @@ app = workflow.compile()
 if __name__ == "__main__":
 
     questions = [
-        "Why is Asia outperforming Europe?"
+        "Why is Asia outperforming Europe?",
+        "Which customer segment performs best?",
+        "Which products generate the most revenue?"
     ]
 
     for q in questions:
