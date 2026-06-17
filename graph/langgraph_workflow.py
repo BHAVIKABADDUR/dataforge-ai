@@ -16,6 +16,7 @@ class AgentState(TypedDict):
     selected_agent: str
     data: str
     result: str
+    final_answer: str
 
 
 # ── Planner Node ───────────────────────────────────────────
@@ -111,6 +112,26 @@ def etl_node(state):
     }
 
 
+# ── Formatter Node ─────────────────────────────────────────
+def formatter_node(state):
+
+    question = state["question"]
+
+    result = state["result"]
+
+    final_answer = f"""
+Question:
+{question}
+
+Answer:
+{result}
+"""
+
+    return {
+        "final_answer": final_answer
+    }
+
+
 # ── Router ─────────────────────────────────────────────────
 def router(state):
 
@@ -150,6 +171,11 @@ workflow.add_node(
     etl_node
 )
 
+workflow.add_node(
+    "formatter_node",
+    formatter_node
+)
+
 workflow.set_entry_point(
     "planner"
 )
@@ -168,7 +194,7 @@ workflow.add_conditional_edges(
 # SQL Path
 workflow.add_edge(
     "sql_node",
-    END
+    "formatter_node"
 )
 
 # Analytics Path
@@ -179,18 +205,24 @@ workflow.add_edge(
 
 workflow.add_edge(
     "analytics_node",
-    END
+    "formatter_node"
 )
 
 # Documentation Path
 workflow.add_edge(
     "documentation_node",
-    END
+    "formatter_node"
 )
 
 # ETL Path
 workflow.add_edge(
     "etl_node",
+    "formatter_node"
+)
+
+# Formatter → END
+workflow.add_edge(
+    "formatter_node",
     END
 )
 
@@ -203,7 +235,7 @@ if __name__ == "__main__":
     questions = [
         "Why is Asia outperforming Europe?",
         "Which customer segment performs best?",
-        "Which products generate the most revenue?"
+        "Explain the fact_sales table."
     ]
 
     for q in questions:
@@ -217,5 +249,5 @@ if __name__ == "__main__":
             }
         )
 
-        print("\nResult:")
-        print(result)
+        print("\nFinal Answer:")
+        print(result["final_answer"])
