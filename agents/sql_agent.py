@@ -13,11 +13,11 @@ load_dotenv()
 def get_connection():
     return pyodbc.connect(
         r"DRIVER={ODBC Driver 17 for SQL Server};"
-        r"SERVER=localhost\SQLEXPRESS;"
+        r"SERVER=BHAVIKA\SQLEXPRESS;"
         r"DATABASE=RetailIQDW;"
         r"Trusted_Connection=yes;"
+        r"Connection Timeout=60;"
     )
-
 # ── 2. Schema info for the LLM ───────────────────────────────────────────────
 SCHEMA_INFO = """
 You are a SQL expert working with a retail data warehouse called RetailIQDW.
@@ -30,6 +30,7 @@ Tables available:
 - dim_date (date_id, order_date, year, month, quarter, day)
 
 Rules:
+
 - This is Microsoft SQL Server — use TOP N instead of LIMIT
 - Always JOIN fact_sales with dimension tables using the appropriate ID columns
 - Use SUM(total_sales) for revenue calculations
