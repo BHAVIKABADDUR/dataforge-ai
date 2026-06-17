@@ -13,6 +13,7 @@ from agents.etl_agent import etl_agent
 class AgentState(TypedDict):
     question: str
     selected_agent: str
+    data: str
     result: str
 
 
@@ -40,20 +41,35 @@ def sql_node(state):
     }
 
 
+# ── SQL For Analytics Node ─────────────────────────────────
+def sql_for_analytics_node(state):
+
+    sql_question = "Show revenue by region."
+
+    sql, columns, rows = sql_agent(sql_question)
+
+    data = []
+
+    for row in rows:
+        data.append(
+            " | ".join(str(x) for x in row)
+        )
+
+    return {
+        "data": "\n".join(data)
+    }
+
+
 # ── Analytics Node ─────────────────────────────────────────
 def analytics_node(state):
 
     question = state["question"]
 
-    sample_data = """
-Region | Revenue
-Asia | 17254330.37
-Europe | 16921682.58
-"""
+    data = state["data"]
 
     analysis = analytics_agent(
         question,
-        sample_data
+        data
     )
 
     return {
@@ -105,6 +121,11 @@ workflow.add_node(
 )
 
 workflow.add_node(
+    "sql_for_analytics_node",
+    sql_for_analytics_node
+)
+
+workflow.add_node(
     "analytics_node",
     analytics_node
 )
@@ -128,15 +149,22 @@ workflow.add_conditional_edges(
     router,
     {
         "sql_agent": "sql_node",
-        "analytics_agent": "analytics_node",
+        "analytics_agent": "sql_for_analytics_node",
         "documentation_agent": "documentation_node",
         "etl_agent": "etl_node"
     }
 )
 
+# SQL Path
 workflow.add_edge(
     "sql_node",
     END
+)
+
+# Analytics Path
+workflow.add_edge(
+    "sql_for_analytics_node",
+    "analytics_node"
 )
 
 workflow.add_edge(
@@ -144,11 +172,13 @@ workflow.add_edge(
     END
 )
 
+# Documentation Path
 workflow.add_edge(
     "documentation_node",
     END
 )
 
+# ETL Path
 workflow.add_edge(
     "etl_node",
     END
@@ -161,10 +191,7 @@ app = workflow.compile()
 if __name__ == "__main__":
 
     questions = [
-        "What are the top 5 products by revenue?",
-        "Why is Asia outperforming Europe?",
-        "Explain the fact_sales table.",
-        "Write PySpark code to calculate monthly revenue."
+        "Why is Asia outperforming Europe?"
     ]
 
     for q in questions:
