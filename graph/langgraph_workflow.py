@@ -70,8 +70,25 @@ def sql_node(state):
 
     sql, columns, rows = sql_agent(question)
 
+    # Format rows cleanly — convert Decimal to float
+    formatted_rows = []
+    for row in rows:
+        formatted_row = []
+        for val in row:
+            try:
+                formatted_row.append(float(val))
+            except (TypeError, ValueError):
+                formatted_row.append(val)
+        formatted_rows.append(formatted_row)
+
+    # Build readable table string
+    header = " | ".join(columns)
+    lines = [header, "-" * 60]
+    for row in formatted_rows:
+        lines.append(" | ".join(str(round(v, 2)) if isinstance(v, float) else str(v) for v in row))
+
     return {
-        "result": str(rows[:5])
+        "result": "\n".join(lines)
     }
 
 
@@ -91,16 +108,24 @@ def sql_for_analytics_node(state):
         sql_question
     )
 
-    data = []
-
+    # Format data cleanly for analytics agent
+    header = " | ".join(columns)
+    data_lines = [header]
     for row in rows:
-        data.append(
-            " | ".join(str(x) for x in row)
-        )
+        formatted = []
+        for val in row:
+            try:
+                formatted.append(str(round(float(val), 2)))
+            except (TypeError, ValueError):
+                formatted.append(str(val))
+        data_lines.append(" | ".join(formatted))
 
     return {
-        "data": "\n".join(data)
+        "data": "\n".join(data_lines)
     }
+
+
+
 
 
 # ── Analytics Node ─────────────────────────────────────────
@@ -145,14 +170,13 @@ def etl_node(state):
 
 
 # ── Formatter Node ─────────────────────────────────────────
+# ── Formatter Node ─────────────────────────────────────────
 def formatter_node(state):
 
     question = state["rewritten_question"]
-
     result = state["result"]
 
-    final_answer = f"""
-Question:
+    final_answer = f"""Question:
 {question}
 
 Answer:
