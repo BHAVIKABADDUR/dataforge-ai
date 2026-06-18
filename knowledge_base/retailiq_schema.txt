@@ -1,0 +1,24 @@
+TABLE: fact_sales
+COLUMNS: sales_key, order_id, customer_id, product_id, region_id, date_id, quantity, price, discount, total_sales
+PURPOSE: Stores transactional sales records.
+BUSINESS MEANING: Contains detailed sales transactions used for revenue analysis, product analysis, customer analysis, and regional performance reporting.
+
+TABLE: dim_customer
+COLUMNS: customer_id, customer_segment
+PURPOSE: Stores customer information and customer segmentation details.
+BUSINESS MEANING: Used to analyze customer behavior, customer performance, and customer segments. Contains customer records and customer classifications.
+
+TABLE: dim_product
+COLUMNS: product_id, product, category
+PURPOSE: Stores product and category information.
+BUSINESS MEANING: Used for product analysis, category analysis, and revenue reporting by product. Contains product records and product categories.
+
+TABLE: dim_region
+COLUMNS: region_id, region
+PURPOSE: Stores sales region information.
+BUSINESS MEANING: Used for regional performance analysis and revenue reporting by geography. Contains regional sales classifications and geographic regions.
+
+TABLE: dim_date
+COLUMNS: date_id, order_date, year, month, quarter, day
+PURPOSE: Stores date attributes for reporting.
+BUSINESS MEANING: Used for trend analysis, monthly reporting, quarterly reporting, and time-series analytics. Contains calendar information and reporting periods.

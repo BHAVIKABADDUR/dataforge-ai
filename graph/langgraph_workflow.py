@@ -7,7 +7,7 @@ from agents.planner_agent import planner_agent
 from agents.analytics_planner_agent import analytics_planner_agent
 from agents.sql_agent import sql_agent
 from agents.analytics_agent import analytics_agent
-from agents.documentation_agent import documentation_agent
+from agents.rag_documentation_agent import rag_documentation_agent
 from agents.etl_agent import etl_agent
 
 from memory.memory_store import save_memory, get_memory
@@ -125,7 +125,7 @@ def documentation_node(state):
 
     question = state["rewritten_question"]
 
-    answer = documentation_agent(question)
+    answer = rag_documentation_agent(question)
 
     return {
         "result": answer
@@ -297,10 +297,9 @@ app = workflow.compile()
 if __name__ == "__main__":
 
     questions = [
-        "What are the top 5 products by revenue?",
-        "What about Asia?"
-    ]
-
+    "What columns exist in dim_product?",
+    "Explain the fact_sales table."
+]
     for q in questions:
 
         print("\n" + "=" * 80)
