@@ -2,6 +2,7 @@ from typing import TypedDict
 
 from langgraph.graph import StateGraph, END
 
+from agents.context_agent import context_agent
 from agents.planner_agent import planner_agent
 from agents.analytics_planner_agent import analytics_planner_agent
 from agents.sql_agent import sql_agent
@@ -9,20 +10,51 @@ from agents.analytics_agent import analytics_agent
 from agents.documentation_agent import documentation_agent
 from agents.etl_agent import etl_agent
 
+from memory.memory_store import save_memory, get_memory
+
 
 # ── State ──────────────────────────────────────────────────
 class AgentState(TypedDict):
     question: str
+    rewritten_question: str
     selected_agent: str
     data: str
     result: str
     final_answer: str
 
 
+# ── Context Node ───────────────────────────────────────────
+def context_node(state):
+
+    current_question = state["question"]
+
+    memory = get_memory()
+
+    previous_question = memory["last_question"]
+
+    if previous_question:
+
+        rewritten = context_agent(
+            previous_question,
+            current_question
+        )
+
+        print("\nContext Agent:")
+        print(rewritten)
+
+    else:
+
+        rewritten = current_question
+
+    return {
+        "rewritten_question": rewritten
+    }
+
+
 # ── Planner Node ───────────────────────────────────────────
 def planner_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     selected = planner_agent(question)
 
@@ -34,7 +66,7 @@ def planner_node(state):
 # ── SQL Node ───────────────────────────────────────────────
 def sql_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     sql, columns, rows = sql_agent(question)
 
@@ -46,7 +78,7 @@ def sql_node(state):
 # ── SQL For Analytics Node ─────────────────────────────────
 def sql_for_analytics_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     sql_question = analytics_planner_agent(
         question
@@ -74,7 +106,7 @@ def sql_for_analytics_node(state):
 # ── Analytics Node ─────────────────────────────────────────
 def analytics_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     data = state["data"]
 
@@ -91,7 +123,7 @@ def analytics_node(state):
 # ── Documentation Node ─────────────────────────────────────
 def documentation_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     answer = documentation_agent(question)
 
@@ -103,7 +135,7 @@ def documentation_node(state):
 # ── ETL Node ───────────────────────────────────────────────
 def etl_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     code = etl_agent(question)
 
@@ -115,7 +147,7 @@ def etl_node(state):
 # ── Formatter Node ─────────────────────────────────────────
 def formatter_node(state):
 
-    question = state["question"]
+    question = state["rewritten_question"]
 
     result = state["result"]
 
@@ -132,6 +164,18 @@ Answer:
     }
 
 
+# ── Memory Node ────────────────────────────────────────────
+def memory_node(state):
+
+    save_memory(
+        state["rewritten_question"],
+        state["selected_agent"],
+        state["result"]
+    )
+
+    return {}
+
+
 # ── Router ─────────────────────────────────────────────────
 def router(state):
 
@@ -140,6 +184,11 @@ def router(state):
 
 # ── Build Graph ────────────────────────────────────────────
 workflow = StateGraph(AgentState)
+
+workflow.add_node(
+    "context_node",
+    context_node
+)
 
 workflow.add_node(
     "planner",
@@ -176,7 +225,17 @@ workflow.add_node(
     formatter_node
 )
 
+workflow.add_node(
+    "memory_node",
+    memory_node
+)
+
 workflow.set_entry_point(
+    "context_node"
+)
+
+workflow.add_edge(
+    "context_node",
     "planner"
 )
 
@@ -220,9 +279,14 @@ workflow.add_edge(
     "formatter_node"
 )
 
-# Formatter → END
+# Formatter → Memory → END
 workflow.add_edge(
     "formatter_node",
+    "memory_node"
+)
+
+workflow.add_edge(
+    "memory_node",
     END
 )
 
@@ -233,9 +297,8 @@ app = workflow.compile()
 if __name__ == "__main__":
 
     questions = [
-        "Why is Asia outperforming Europe?",
-        "Which customer segment performs best?",
-        "Explain the fact_sales table."
+        "What are the top 5 products by revenue?",
+        "What about Asia?"
     ]
 
     for q in questions:
@@ -251,3 +314,6 @@ if __name__ == "__main__":
 
         print("\nFinal Answer:")
         print(result["final_answer"])
+
+        print("\nMemory:")
+        print(get_memory())
