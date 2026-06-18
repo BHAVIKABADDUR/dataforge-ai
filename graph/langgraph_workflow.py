@@ -8,7 +8,7 @@ from agents.analytics_planner_agent import analytics_planner_agent
 from agents.sql_agent import sql_agent
 from agents.analytics_agent import analytics_agent
 from agents.rag_documentation_agent import rag_documentation_agent
-from agents.etl_agent import etl_agent
+from agents.rag_etl_agent import rag_etl_agent
 
 from memory.memory_store import save_memory, get_memory
 
@@ -159,18 +159,15 @@ def documentation_node(state):
 
 # ── ETL Node ───────────────────────────────────────────────
 def etl_node(state):
-
     question = state["rewritten_question"]
-
-    code = etl_agent(question)
-
+    code = rag_etl_agent(question)
     return {
         "result": code
     }
 
 
 # ── Formatter Node ─────────────────────────────────────────
-# ── Formatter Node ─────────────────────────────────────────
+
 def formatter_node(state):
 
     question = state["rewritten_question"]
