@@ -295,24 +295,17 @@ app = workflow.compile()
 
 # ── Test ───────────────────────────────────────────────────
 if __name__ == "__main__":
-
     questions = [
-    "What columns exist in dim_product?",
-    "Explain the fact_sales table."
-]
+        "What are the top 5 products by revenue?",
+        "Why is Asia outperforming Europe?",
+        "What columns exist in dim_product?",
+        "Create a PySpark transformation for customer segmentation",
+    ]
     for q in questions:
-
         print("\n" + "=" * 80)
         print("Question:", q)
-
-        result = app.invoke(
-            {
-                "question": q
-            }
-        )
-
+        result = app.invoke({"question": q})
         print("\nFinal Answer:")
         print(result["final_answer"])
-
         print("\nMemory:")
         print(get_memory())
