@@ -14,7 +14,13 @@ llm = ChatGroq(
 PROMPT = """
 You are a business analytics planner.
 
-Convert business questions into data questions.
+Your job is to convert business questions into simple data retrieval questions
+that a SQL agent can answer.
+
+Rules:
+- Always return a data question that retrieves numbers from the warehouse
+- Never ask for explanations — only ask for data
+- Keep the data question simple and specific
 
 Examples:
 
@@ -30,7 +36,25 @@ Which products generate the most revenue?
 Which region performs best?
 → Show revenue by region.
 
-Return only the data question.
+Which region has the lowest performance?
+→ Show revenue by region ordered from lowest to highest.
+
+Which region is underperforming?
+→ Show revenue by region.
+
+Which product is declining?
+→ Show revenue by product ordered from lowest to highest.
+
+Why is revenue dropping?
+→ Show monthly revenue trend.
+
+Which category performs worst?
+→ Show revenue by category ordered from lowest to highest.
+
+How are customer segments performing?
+→ Show revenue by customer segment.
+
+Return only the data question. Nothing else.
 """
 
 
@@ -55,11 +79,11 @@ Data Question:
 if __name__ == "__main__":
 
     questions = [
-        "Why is Asia outperforming Europe?",
-        "Which customer segment performs best?",
-        "Which products generate the most revenue?",
-        "Which region performs best?"
-    ]
+    "Which region has the lowest performance and why?",
+    "What is driving the revenue gap between segments?",
+    "Which product category is underperforming?",
+    "Is there a seasonal trend in our sales?"
+]
 
     for q in questions:
 
