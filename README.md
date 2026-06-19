@@ -54,35 +54,6 @@ The project demonstrates how data engineering, retrieval-augmented generation, n
 - Display agent metadata, generated queries, records, and visuals in Streamlit
 - Save, rename, rerun, and delete reusable queries locally
 
-## System Architecture
-
-```mermaid
-flowchart TD
-    U[User question] --> C[Context Agent]
-    C --> P[Planner Agent]
-
-    P -->|Data request| S[SQL Agent]
-    P -->|Insight request| AP[Analytics Planner]
-    P -->|Schema question| D[Documentation RAG Agent]
-    P -->|ETL request| E[ETL RAG Agent]
-
-    S --> DB[(RetailIQDW)]
-    DB --> SR[SQL results]
-
-    AP --> ASQL[SQL Agent]
-    ASQL --> DB
-    DB --> A[Analytics Agent]
-
-    D --> V[(FAISS schema index)]
-    E --> V
-
-    SR --> F[Response Formatter]
-    A --> F
-    D --> F
-    E --> F
-    F --> M[Memory]
-    M --> UI[Streamlit Interface]
-```
 
 ## Agent Responsibilities
 
