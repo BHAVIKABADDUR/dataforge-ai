@@ -73,8 +73,31 @@ section[data-testid="stSidebar"] {
   border-right: 1px solid #E5E7EB !important;
   min-width: 236px !important;
   max-width: 236px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+  position: relative !important;
+  left: 0 !important;
+  flex-shrink: 0 !important;
 }
-[data-testid="stSidebarCollapseButton"] { display: none !important; }
+/* Keep sidebar expanded — hide collapse/toggle buttons */
+[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"],
+button[aria-label="Close sidebar"],
+button[aria-label="open sidebar"],
+button[aria-label="collapse sidebar"] {
+  display: none !important;
+}
+/* Prevent sidebar from being pushed off-screen */
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  margin-left: 0 !important;
+  transform: none !important;
+  display: block !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] > div {
+  display: block !important;
+}
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] label,
@@ -517,8 +540,38 @@ def render_result_tabs(prompt, final_answer, agent, generated_sql=None, columns=
 
     df = pd.DataFrame(rows, columns=columns) if columns and rows else None
 
+    # For ETL agent, PySpark code may land in final_answer instead of raw_result.
+    # Detect code and route it to the Query tab; show a summary in Insight instead.
+    is_etl = agent == "etl_agent"
+    pyspark_code = ""
+    etl_summary = final_answer
+    if is_etl:
+        code_candidate = raw_result.strip() if (raw_result and raw_result.strip()) else final_answer.strip()
+        looks_like_code = (
+            "pyspark" in code_candidate.lower()
+            or code_candidate.startswith("from ")
+            or code_candidate.startswith("import ")
+            or ".groupBy(" in code_candidate
+            or ".withColumn" in code_candidate
+            or "spark." in code_candidate
+        )
+        if looks_like_code:
+            pyspark_code = code_candidate
+            etl_summary = (
+                "PySpark ETL script generated. "
+                "View the code in the **⌘ Query** tab."
+            )
+
     with insight_tab:
-        st.markdown(final_answer)
+        if is_etl and pyspark_code:
+            st.markdown(
+                f'<div style="color:#9CA3AF;font-size:12.5px;font-style:italic;'
+                f'font-family:Inter,sans-serif;padding:4px 0;">'
+                f'⌘ PySpark ETL script generated — see the <b>Query</b> tab for the code.</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(final_answer)
 
     with records_tab:
         if df is not None:
@@ -536,7 +589,9 @@ def render_result_tabs(prompt, final_answer, agent, generated_sql=None, columns=
     with query_tab:
         if generated_sql:
             st.code(generated_sql, language="sql")
-        elif agent == "etl_agent" and raw_result:
+        elif is_etl and pyspark_code:
+            st.code(pyspark_code, language="python")
+        elif is_etl and raw_result:
             st.code(raw_result, language="python")
         else:
             st.info("No generated query is available for this response.")
@@ -600,7 +655,8 @@ def render_response(prompt):
                     "rows": row_count,
                     "columns": columns,
                     "data_rows": rows,
-                    "generated_sql": generated_sql
+                    "generated_sql": generated_sql,
+                    "raw_result": raw_result,
                 }
             })
 
@@ -787,6 +843,7 @@ with main_col:
                 columns = metadata.get("columns", [])
                 data_rows = metadata.get("data_rows", [])
                 generated_sql = metadata.get("generated_sql", "")
+                raw_result = metadata.get("raw_result", "")
                 
                 # Compact response metadata
                 st.markdown(
@@ -818,6 +875,7 @@ with main_col:
                     generated_sql,
                     columns,
                     data_rows,
+                    raw_result,
                 )
             else:
                 st.markdown(msg["content"])
