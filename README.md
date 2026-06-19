@@ -1,10 +1,8 @@
 # DataForge AI
-## Live Demo
 
-Coming Soon (Streamlit Deployment)
+📂 Repository: https://github.com/BHAVIKABADDUR/dataforge-ai
 
 ## Architecture
-
 
 Multi-Agent Analytics Copilot for Retail Data Warehouses
 
