@@ -1,3 +1,6 @@
+# agents/planner_agent.py
+# Planner Agent for DataForge AI — routes user intent to specialized agents
+
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
@@ -138,7 +141,31 @@ documentation_agent
 etl_agent
 """
 
-def planner_agent(question: str):
+
+def planner_agent(question: str) -> str:
+
+    question_lower = question.lower()
+
+    # ── Deterministic ETL Routing ─────────────────────────
+
+    etl_keywords = [
+        "create",
+        "build",
+        "generate",
+        "write",
+        "develop",
+        "pyspark",
+        "etl",
+        "transformation",
+        "pipeline",
+        "gold table",
+        "silver table"
+    ]
+
+    if any(keyword in question_lower for keyword in etl_keywords):
+        return "etl_agent"
+
+    # ── LLM Planner ───────────────────────────────────────
 
     prompt = f"""
 {PLANNER_PROMPT}
@@ -158,22 +185,18 @@ Agent:
 
 if __name__ == "__main__":
 
-    questions = [
-    "Show revenue by region.",
-    "Which products generated the highest revenue?",
-    "Explain the dim_product table.",
-    "What columns exist in fact_sales?",
-    "Write PySpark code to calculate monthly revenue.",
-    "Build an ETL pipeline for sales data.",
-    "Why is Asia outperforming Europe?",
-    "Recommend ways to improve customer revenue."
-]
-    
+    test_cases = [
+        "Create profitability analysis",
+        "Create gross margin analysis",
+        "Create churn transformation",
+        "Build an ETL pipeline for sales data",
+        "Show revenue by region.",
+        "Explain the dim_product table.",
+        "Why is Asia outperforming Europe?"
+    ]
 
-    for q in questions:
+    for q in test_cases:
         print("\n" + "=" * 60)
         print("Question:", q)
-
         agent = planner_agent(q)
-
         print("Selected Agent:", agent)

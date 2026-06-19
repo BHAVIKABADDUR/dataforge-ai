@@ -21,6 +21,9 @@ class AgentState(TypedDict):
     data: str
     result: str
     final_answer: str
+    generated_sql: str
+    columns: list
+    rows: list
 
 
 # ── Context Node ───────────────────────────────────────────
@@ -84,13 +87,21 @@ def sql_node(state):
     # Build readable table string
     header = " | ".join(columns)
     lines = [header, "-" * 60]
+
     for row in formatted_rows:
-        lines.append(" | ".join(str(round(v, 2)) if isinstance(v, float) else str(v) for v in row))
+        lines.append(
+            " | ".join(
+                str(round(v, 2)) if isinstance(v, float) else str(v)
+                for v in row
+            )
+        )
 
     return {
-        "result": "\n".join(lines)
-    }
-
+    "generated_sql": sql,
+    "columns": columns,
+    "rows": formatted_rows,
+    "result": "\n".join(lines)
+}
 
 # ── SQL For Analytics Node ─────────────────────────────────
 def sql_for_analytics_node(state):
@@ -111,22 +122,26 @@ def sql_for_analytics_node(state):
     # Format data cleanly for analytics agent
     header = " | ".join(columns)
     data_lines = [header]
+
     for row in rows:
         formatted = []
+
         for val in row:
             try:
-                formatted.append(str(round(float(val), 2)))
+                formatted.append(
+                    str(round(float(val), 2))
+                )
             except (TypeError, ValueError):
                 formatted.append(str(val))
-        data_lines.append(" | ".join(formatted))
+
+        data_lines.append(
+            " | ".join(formatted)
+        )
 
     return {
+        "generated_sql": sql,
         "data": "\n".join(data_lines)
     }
-
-
-
-
 
 # ── Analytics Node ─────────────────────────────────────────
 def analytics_node(state):
@@ -170,15 +185,15 @@ def etl_node(state):
 
 def formatter_node(state):
 
-    question = state["rewritten_question"]
+    agent = state["selected_agent"]
     result = state["result"]
 
-    final_answer = f"""Question:
-{question}
-
-Answer:
-{result}
-"""
+    # For SQL responses: only return result, let UI render dataframe from columns/rows
+    # For other agents (analytics, docs, etl): return formatted answer
+    if agent == "sql_agent":
+        final_answer = result
+    else:
+        final_answer = result
 
     return {
         "final_answer": final_answer

@@ -49,14 +49,95 @@ Rules:
 - Assume Spark session already exists
 - Strip markdown from output
 - Return code only
+- Use ONLY columns present in the schema.
+
+- Do not invent business rules.
+
+- Do not invent churn thresholds.
+
+- Do not invent customer lifetime assumptions.
+
+- Do not invent profit, cost, margin, or inventory values unless they exist in the schema.
+
+- If required information does not exist in the schema, explain the limitation and generate the closest possible transformation using available columns.
 """
 
 
 def rag_etl_agent(question: str) -> str:
     from rag.retriever import retrieve
 
-    # Retrieve relevant schema chunks
+    question_lower = question.lower()
+
+    # ── Business Rule Guardrails ──────────────────────────
+
+    if any(
+        word in question_lower
+        for word in [
+            "profit",
+            "profitability",
+            "margin",
+            "gross margin",
+            "net margin"
+        ]
+    ):
+        return """
+Profitability analysis cannot be generated.
+
+Reason:
+The RetailIQ schema does not contain cost, profit,
+margin, or expense fields.
+
+Available financial fields:
+- quantity
+- price
+- discount
+- total_sales
+"""
+
+    if any(
+        word in question_lower
+        for word in [
+            "churn",
+            "retention",
+            "attrition"
+        ]
+    ):
+        return """
+Customer churn transformation cannot be generated.
+
+Reason:
+The RetailIQ schema does not define a churn rule.
+
+Additional business logic is required
+(e.g. 30 days inactive, 90 days inactive, etc.).
+"""
+
+    if any(
+        word in question_lower
+        for word in [
+            "lifetime value",
+            "customer lifetime value",
+            "clv"
+        ]
+    ):
+        return """
+from pyspark.sql import functions as F
+
+customer_lifetime_value = (
+    silver_sales
+    .groupBy("customer_id")
+    .agg(
+        F.sum("total_sales").alias("lifetime_revenue"),
+        F.count("order_id").alias("total_orders"),
+        F.avg("total_sales").alias("avg_order_value")
+    )
+)
+"""
+
+    # ── RAG Retrieval ─────────────────────────────────────
+
     docs = retrieve(question, top_k=2)
+
     context = "\n\n".join(docs)
 
     prompt = f"""
@@ -73,10 +154,22 @@ Request:
 PySpark Code:
 """
 
-    response = llm.invoke([HumanMessage(content=prompt)])
+    response = llm.invoke(
+        [
+            HumanMessage(
+                content=prompt
+            )
+        ]
+    )
 
     code = response.content.strip()
-    code = code.replace("```python", "").replace("```", "").strip()
+
+    code = (
+        code
+        .replace("```python", "")
+        .replace("```", "")
+        .strip()
+    )
 
     return code
 
@@ -84,10 +177,9 @@ PySpark Code:
 if __name__ == "__main__":
 
     test_cases = [
-        "Create a Gold table for revenue by region.",
-        "Create a Gold table for top products by revenue.",
-        "Create monthly revenue aggregation.",
-        "Create a customer segmentation transformation."
+        "Create profitability analysis",
+        "Create churn transformation",
+        "Create customer lifetime value transformation"
     ]
 
     for q in test_cases:
